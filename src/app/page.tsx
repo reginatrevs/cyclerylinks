@@ -13,20 +13,58 @@ import { TrackedClicks } from '@/components/TrackedClicks'
 
 export const revalidate = 30
 
+function defaultSettings(): Settings {
+  return {
+    id: 1,
+    shop_name: 'The Cyclery',
+    tagline: '',
+    logo_url: '',
+    address: '',
+    phone: '',
+    email: '',
+    google_maps_embed_url: '',
+    google_maps_directions_url: '',
+    google_review_url: '',
+    facebook_url: '',
+    google_business_url: '',
+    instagram_url: '',
+    strava_url: '',
+    accent_color: '#e11d48',
+    hours: {
+      mon: { closed: true },
+      tue: { open: '10:00', close: '18:00' },
+      wed: { open: '10:00', close: '18:00' },
+      thu: { open: '10:00', close: '18:00' },
+      fri: { open: '10:00', close: '18:00' },
+      sat: { open: '10:00', close: '17:00' },
+      sun: { closed: true },
+    },
+    timezone: 'America/Toronto',
+    featured_title: '',
+    featured_body: '',
+    featured_image_url: '',
+    updated_at: new Date(0).toISOString(),
+  }
+}
+
 async function loadPageData(): Promise<{ settings: Settings; links: Link[] }> {
-  const [settingsRes, linksRes] = await Promise.all([
-    supabasePublic.from('settings').select('*').eq('id', 1).single(),
-    supabasePublic
-      .from('links')
-      .select('*')
-      .eq('published', true)
-      .order('position', { ascending: true })
-      .order('created_at', { ascending: true }),
-  ])
-  const settings = (settingsRes.data ?? null) as Settings | null
-  const links = (linksRes.data ?? []) as Link[]
-  if (!settings) throw new Error('Settings row missing — run the initial migration.')
-  return { settings, links }
+  try {
+    const [settingsRes, linksRes] = await Promise.all([
+      supabasePublic.from('settings').select('*').eq('id', 1).maybeSingle(),
+      supabasePublic
+        .from('links')
+        .select('*')
+        .eq('published', true)
+        .order('position', { ascending: true })
+        .order('created_at', { ascending: true }),
+    ])
+    const settings = (settingsRes.data ?? null) as Settings | null
+    const links = (linksRes.data ?? []) as Link[]
+    return { settings: settings ?? defaultSettings(), links }
+  } catch (err) {
+    console.error('[cyclerylinks] Supabase unreachable at page load, using defaults:', err)
+    return { settings: defaultSettings(), links: [] }
+  }
 }
 
 export async function generateMetadata(): Promise<Metadata> {
